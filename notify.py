@@ -7,7 +7,7 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 # All targets: channels + your personal inbox
 CHANNELS = ["@techdaily_buzz", "@tech_empire"]
-ADMIN_CHAT = "@smartesthacker"  # Personal notification inbox
+ADMIN_CHAT = "811518519"  # Personal notification inbox
 
 BLOG_URL = "https://techdaily.buzz"
 STATE_FILE = "last_post.json"
