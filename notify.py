@@ -7,7 +7,7 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 # All targets: channels + your personal inbox
 CHANNELS = ["@techdaily_buzz", "@tech_empire"]
-ADMIN_CHAT = "811518519"  # Personal notification inbox
+ADMIN_CHAT = "5134479845"  # Get this from @userinfobot on Telegram
 
 BLOG_URL = "https://techdaily.buzz"
 STATE_FILE = "last_post.json"
@@ -121,7 +121,7 @@ def main():
     # Main post message (sent to channels)
     post_message = (
         f"📰 <b>{title}</b>\n\n"
-        f"{description}\n\n"
+        f"<blockquote>{description}</blockquote>\n\n"
         f"✦•━━━━━━•✦✦•━━━━━━•✦\n"
         f"💞 Keep Supporting Us 💞 ▬▬\n"
         f"🏷 Tags: {hashtags}"
@@ -151,10 +151,12 @@ def main():
         f"{status_lines}"
     )
     try:
-        send_message(ADMIN_CHAT, admin_message)
+        resp = send_message(ADMIN_CHAT, admin_message)
         print(f"✅ Admin notified at {ADMIN_CHAT}")
-    except Exception as e:
+        print(f"   Telegram response: {resp}")
+    except requests.exceptions.HTTPError as e:
         print(f"❌ Failed to notify admin: {e}")
+        print(f"   Response body: {e.response.text}")
 
     save_last_post(link)
     print(f"Done: {title}")
