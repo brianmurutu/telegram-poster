@@ -1,22 +1,36 @@
 import os
 import json
 import requests
-import feedparser
+from bs4 import BeautifulSoup
 
-TELEGRAM_TOKEN = os.environ["7868330519:AAGcAAQdrVXkviGRjo5vFgx-DEsWT-3Kgik"]
+TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHANNEL_ID = "-1002076804696"
-FEED_URL = "https://techdaily.buzz/feed"
+BLOG_URL = "https://techdaily.buzz"
 STATE_FILE = "last_post.json"
 
 def load_last_post():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE) as f:
-            return json.load(f).get("id")
+            return json.load(f).get("url")
     return None
 
-def save_last_post(post_id):
+def save_last_post(post_url):
     with open(STATE_FILE, "w") as f:
-        json.dump({"id": post_id}, f)
+        json.dump({"url": post_url}, f)
+
+def get_latest_post():
+    response = requests.get(BLOG_URL, timeout=10)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Grab the first article h2 link on the homepage
+    for tag in soup.find_all("h2"):
+        a = tag.find("a", href=True)
+        if a and a["href"].startswith("https://techdaily.buzz/"):
+            title = a.get_text(strip=True)
+            link = a["href"]
+            return title, link
+    return None, None
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -30,27 +44,20 @@ def send_telegram_message(text):
     response.raise_for_status()
 
 def main():
-    feed = feedparser.parse(FEED_URL)
-    if not feed.entries:
-        print("No entries found in feed.")
+    title, link = get_latest_post()
+    if not title:
+        print("Could not find any posts on the homepage.")
         return
 
-    latest = feed.entries[0]
-    post_id = latest.get("id") or latest.get("link")
-    last_id = load_last_post()
+    last_url = load_last_post()
 
-    if post_id == last_id:
+    if link == last_url:
         print("No new posts.")
         return
 
-    # Format message
-    title = latest.get("title", "New Post")
-    link = latest.get("link", "")
-    summary = latest.get("summary", "")[:200] + "..." if latest.get("summary") else ""
-
-    message = f"📰 <b>{title}</b>\n\n{summary}\n\n🔗 <a href='{link}'>Read more</a>"
+    message = f"📰 <b>{title}</b>\n\n🔗 <a href='{link}'>Read more on TechDaily</a>"
     send_telegram_message(message)
-    save_last_post(post_id)
+    save_last_post(link)
     print(f"Posted: {title}")
 
 if __name__ == "__main__":
