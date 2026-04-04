@@ -99,7 +99,7 @@ def build_inline_buttons(link):
                 {"text": "📖 Read Full Article", "url": link}
             ],
             [
-                {"text": "⚡ Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
+                {"text": "🔐 Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
             ]
         ]
     }
