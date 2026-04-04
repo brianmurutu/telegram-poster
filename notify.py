@@ -3,7 +3,7 @@ import json
 import requests
 import feedparser
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_TOKEN = os.environ["7868330519:AAGcAAQdrVXkviGRjo5vFgx-DEsWT-3Kgik"]
 CHANNEL_ID = "@techdaily_buzz"
 FEED_URL = "https://techdaily.buzz/feed"
 STATE_FILE = "last_post.json"
