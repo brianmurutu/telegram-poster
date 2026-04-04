@@ -4,7 +4,11 @@ import requests
 from bs4 import BeautifulSoup
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-CHANNEL_ID = "-1002076804696"
+
+# All targets: channels + your personal inbox
+CHANNELS = ["-1002076804696", "@techdaily_buzz", "@tech_empire"]
+ADMIN_CHAT = "@smartesthacker"  # Personal notification inbox
+
 BLOG_URL = "https://techdaily.buzz"
 STATE_FILE = "last_post.json"
 
@@ -23,7 +27,6 @@ def get_latest_post():
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Grab the first article h2 link on the homepage
     for tag in soup.find_all("h2"):
         a = tag.find("a", href=True)
         if a and a["href"].startswith("https://techdaily.buzz/"):
@@ -33,18 +36,16 @@ def get_latest_post():
     return None, None
 
 def get_post_details(post_url):
-    """Fetch the individual post page to get description and tags."""
     response = requests.get(post_url, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # --- Description ---
+    # Description
     description = ""
     meta_desc = soup.find("meta", attrs={"name": "description"})
     if meta_desc and meta_desc.get("content"):
         description = meta_desc["content"].strip()
 
-    # Fallback: first paragraph after the h1
     if not description:
         h1 = soup.find("h1")
         if h1:
@@ -52,15 +53,13 @@ def get_post_details(post_url):
             if next_p:
                 description = next_p.get_text(strip=True)
 
-    # Trim to 200 chars
     if len(description) > 200:
         description = description[:200].rsplit(" ", 1)[0] + "..."
 
-    # --- Tags ---
+    # Tags
     tags = []
     for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if "/tag/" in href:
+        if "/tag/" in a["href"]:
             tag_text = a.get_text(strip=True)
             if tag_text and tag_text not in tags:
                 tags.append(tag_text)
@@ -68,25 +67,44 @@ def get_post_details(post_url):
     return description, tags
 
 def format_tags(tags):
-    """Convert tag list to hashtag string."""
     if not tags:
         return "#Tech #TechDaily"
     hashtags = []
-    for tag in tags[:6]:  # limit to 6 tags
+    for tag in tags[:6]:
         clean = tag.replace(" ", "").replace("-", "").replace("&", "").replace("/", "")
         hashtags.append(f"#{clean}")
     return " ".join(hashtags)
 
-def send_telegram_message(text):
+def send_message(chat_id, text, reply_markup=None):
+    """Send a message to any chat ID or username."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": CHANNEL_ID,
+        "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": False
     }
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup)
+
     response = requests.post(url, json=payload)
     response.raise_for_status()
+    return response.json()
+
+def build_inline_buttons(link):
+    """Build inline keyboard buttons for the post."""
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "📖 Read Full Article", "url": link},
+                {"text": "🌐 Visit TechDaily", "url": "https://techdaily.buzz"}
+            ],
+            [
+                {"text": "📢 Join @techdaily_buzz", "url": "https://t.me/techdaily_buzz"},
+                {"text": "⚡ Join @tech_empire", "url": "https://t.me/tech_empire"}
+            ]
+        ]
+    }
 
 def main():
     title, link = get_latest_post()
@@ -102,18 +120,46 @@ def main():
     description, tags = get_post_details(link)
     hashtags = format_tags(tags)
 
-    message = (
+    # Main post message (sent to channels)
+    post_message = (
         f"📰 <b>{title}</b>\n\n"
         f"{description}\n\n"
-        f"🔗 <a href='{link}'>Read Full Article</a>\n\n"
         f"✦•━━━━━━•✦✦•━━━━━━•✦\n"
         f"💞 Keep Supporting Us 💞 ▬▬\n"
         f"🏷 Tags: {hashtags}"
     )
 
-    send_telegram_message(message)
+    buttons = build_inline_buttons(link)
+
+    # Post to all channels with buttons
+    failed = []
+    for channel in CHANNELS:
+        try:
+            send_message(channel, post_message, reply_markup=buttons)
+            print(f"✅ Posted to {channel}")
+        except Exception as e:
+            failed.append(channel)
+            print(f"❌ Failed to post to {channel}: {e}")
+
+    # Send admin notification to personal inbox
+    status_lines = "\n".join(
+        [f"{'✅' if ch not in failed else '❌'} {ch}" for ch in CHANNELS]
+    )
+    admin_message = (
+        f"🔔 <b>New Post Published!</b>\n\n"
+        f"📰 <b>{title}</b>\n"
+        f"🔗 {link}\n\n"
+        f"<b>Delivery Status:</b>\n"
+        f"{status_lines}"
+    )
+    try:
+        send_message(ADMIN_CHAT, admin_message)
+        print(f"✅ Admin notified at {ADMIN_CHAT}")
+    except Exception as e:
+        print(f"❌ Failed to notify admin: {e}")
+
     save_last_post(link)
-    print(f"Posted: {title}")
+    print(f"Done: {title}")
 
 if __name__ == "__main__":
     main()
