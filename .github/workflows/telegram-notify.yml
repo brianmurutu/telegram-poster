@@ -25,7 +25,7 @@ jobs:
 
       - name: Run notifier
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python notify.py
 
       - name: Commit updated state
