@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 # All targets: channels + your personal inbox
-CHANNELS = ["-1002076804696", "@techdaily_buzz", "@tech_empire"]
+CHANNELS = ["@techdaily_buzz", "@tech_empire"]
 ADMIN_CHAT = "@smartesthacker"  # Personal notification inbox
 
 BLOG_URL = "https://techdaily.buzz"
@@ -99,7 +99,7 @@ def build_inline_buttons(link):
                 {"text": "📖 Read Full Article", "url": link}
             ],
             [
-                {"text": "🔐 Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
+                {"text": "⚡ Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
             ]
         ]
     }
