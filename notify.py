@@ -96,12 +96,10 @@ def build_inline_buttons(link):
     return {
         "inline_keyboard": [
             [
-                {"text": "📖 Read Full Article", "url": link},
-                {"text": "🌐 Visit TechDaily", "url": "https://techdaily.buzz"}
+                {"text": "📖 Read Full Article", "url": link}
             ],
             [
-                {"text": "📢 Join @techdaily_buzz", "url": "https://t.me/techdaily_buzz"},
-                {"text": "⚡ Join @tech_empire", "url": "https://t.me/tech_empire"}
+                {"text": "⚡ Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
             ]
         ]
     }
