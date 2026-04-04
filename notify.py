@@ -7,7 +7,7 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 # All targets: channels + your personal inbox
 CHANNELS = ["@techdaily_buzz", "@tech_empire"]
-ADMIN_CHAT = "5134479845"  # Get this from @userinfobot on Telegram
+ADMIN_CHAT = "YOUR_NUMERIC_USER_ID_HERE"  # Get this from @userinfobot on Telegram
 
 BLOG_URL = "https://techdaily.buzz"
 STATE_FILE = "last_post.json"
@@ -120,6 +120,8 @@ def main():
 
     # Main post message (sent to channels)
     post_message = (
+        f"⚠️ <b>NEW BLOG ARTICLE ALERT</b> ‼️\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📰 <b>{title}</b>\n\n"
         f"<blockquote>{description}</blockquote>\n\n"
         f"✦•━━━━━━•✦✦•━━━━━━•✦\n"
