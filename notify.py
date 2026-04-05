@@ -1,15 +1,15 @@
 import os
 import json
 import requests
+import feedparser
 from bs4 import BeautifulSoup
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
-# All targets: channels + your personal inbox
 CHANNELS = ["@techdaily_buzz", "@tech_empire"]
-ADMIN_CHAT = "YOUR_NUMERIC_USER_ID_HERE"  # Get this from @userinfobot on Telegram
+ADMIN_CHAT = "YOUR_NUMERIC_USER_ID_HERE"  # Replace with your ID from @userinfobot
 
-BLOG_URL = "https://techdaily.buzz"
+FEED_URL = "https://techdaily.buzz/feed.php"
 STATE_FILE = "last_post.json"
 
 def load_last_post():
@@ -23,48 +23,35 @@ def save_last_post(post_url):
         json.dump({"url": post_url}, f)
 
 def get_latest_post():
-    response = requests.get(BLOG_URL, timeout=10)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
+    feed = feedparser.parse(FEED_URL)
+    if not feed.entries:
+        print("No entries found in feed.")
+        return None, None, None
 
-    for tag in soup.find_all("h2"):
-        a = tag.find("a", href=True)
-        if a and a["href"].startswith("https://techdaily.buzz/"):
-            title = a.get_text(strip=True)
-            link = a["href"]
-            return title, link
-    return None, None
-
-def get_post_details(post_url):
-    response = requests.get(post_url, timeout=10)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Description
-    description = ""
-    meta_desc = soup.find("meta", attrs={"name": "description"})
-    if meta_desc and meta_desc.get("content"):
-        description = meta_desc["content"].strip()
-
-    if not description:
-        h1 = soup.find("h1")
-        if h1:
-            next_p = h1.find_next("p")
-            if next_p:
-                description = next_p.get_text(strip=True)
-
+    latest = feed.entries[0]
+    title = latest.get("title", "New Post")
+    link = latest.get("link", "")
+    description = latest.get("summary", "")
     if len(description) > 200:
         description = description[:200].rsplit(" ", 1)[0] + "..."
+    return title, link, description
 
-    # Tags
-    tags = []
-    for a in soup.find_all("a", href=True):
-        if "/tag/" in a["href"]:
-            tag_text = a.get_text(strip=True)
-            if tag_text and tag_text not in tags:
-                tags.append(tag_text)
-
-    return description, tags
+def get_post_tags(post_url):
+    """Scrape tags from the individual post page."""
+    try:
+        response = requests.get(post_url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        tags = []
+        for a in soup.find_all("a", href=True):
+            if "/tag/" in a["href"]:
+                tag_text = a.get_text(strip=True)
+                if tag_text and tag_text not in tags:
+                    tags.append(tag_text)
+        return tags
+    except Exception as e:
+        print(f"Could not fetch tags: {e}")
+        return []
 
 def format_tags(tags):
     if not tags:
@@ -76,7 +63,6 @@ def format_tags(tags):
     return " ".join(hashtags)
 
 def send_message(chat_id, text, reply_markup=None):
-    """Send a message to any chat ID or username."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -86,28 +72,21 @@ def send_message(chat_id, text, reply_markup=None):
     }
     if reply_markup:
         payload["reply_markup"] = json.dumps(reply_markup)
-
     response = requests.post(url, json=payload)
     response.raise_for_status()
     return response.json()
 
 def build_inline_buttons(link):
-    """Build inline keyboard buttons for the post."""
     return {
         "inline_keyboard": [
-            [
-                {"text": "📖 Read Full Article", "url": link}
-            ],
-            [
-                {"text": "⚡ Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}
-            ]
+            [{"text": "📖 Read Full Article", "url": link}],
+            [{"text": "⚡ Join Our Private Channel", "url": "https://t.me/tribute/app?startapp=s12I"}]
         ]
     }
 
 def main():
-    title, link = get_latest_post()
-    if not title:
-        print("Could not find any posts on the homepage.")
+    title, link, description = get_latest_post()
+    if not link:
         return
 
     last_url = load_last_post()
@@ -115,10 +94,11 @@ def main():
         print("No new posts.")
         return
 
-    description, tags = get_post_details(link)
+    print(f"New post detected: {title}")
+
+    tags = get_post_tags(link)
     hashtags = format_tags(tags)
 
-    # Main post message (sent to channels)
     post_message = (
         f"⚠️ <b>NEW BLOG ARTICLE ALERT</b> ‼️\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -131,7 +111,6 @@ def main():
 
     buttons = build_inline_buttons(link)
 
-    # Post to all channels with buttons
     failed = []
     for channel in CHANNELS:
         try:
@@ -141,7 +120,7 @@ def main():
             failed.append(channel)
             print(f"❌ Failed to post to {channel}: {e}")
 
-    # Send admin notification to personal inbox
+    # Admin notification
     status_lines = "\n".join(
         [f"{'✅' if ch not in failed else '❌'} {ch}" for ch in CHANNELS]
     )
